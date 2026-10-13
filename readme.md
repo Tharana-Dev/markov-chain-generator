@@ -103,6 +103,25 @@ print(" ".join(generate(data, start="the", length=40)))
   random.seed(42)
   ```
 
+## Graph Operations
+
+The chain is a directed graph — words are nodes, transitions are weighted edges.
+
+### `collect_words(chain, word) -> set[str]`
+All words reachable from `word`, including `word` itself.
+Uses DFS with cycle detection.
+
+### `find_path(chain, start, target) -> list[str] | None`
+A path from `start` to `target` (DFS — not necessarily shortest).
+Returns `None` if no path exists.
+
+### `shortest_path(chain, start, target) -> list[str] | None`
+The shortest path (BFS — guarantees fewest hops).
+Returns `None` if no path exists.
+
+**Time complexity:** all three are O(V + E) where V = unique words, E = transitions.
+**Space complexity:** O(V).
+
 ## License
 
 Public domain / MIT — do whatever you like with it.

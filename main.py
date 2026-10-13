@@ -1,5 +1,5 @@
 from tokenizer import tokenize_text
-from chain import get_data, generate
+from chain import get_data, generate, shortest_path, find_path, collect_words
 
 SAMPLE = """
 The ocean is a vast and restless place, full of mysteries that humans have only begun to understand.
@@ -63,4 +63,13 @@ if __name__ == "__main__":
     print("After 'the':", data.chain["the"].most_common(5))
 
     for _ in range(10):
-        print(" ".join(generate(data, length=25)))
+        print(" ".join(generate(data, length=25))) # change length to see different patterns
+        print()
+
+        # After the existing generate demo
+    print("\n--- Graph traversal demos ---\n")
+    print("Reachable from 'the':", sorted(collect_words(data.chain, "the")))
+    print()
+    print("DFS path from 'ocean' to 'stars':", find_path(data.chain, "ocean", "stars"))
+    print()
+    print("BFS path from 'ocean' to 'stars':", shortest_path(data.chain, "ocean", "stars"))
