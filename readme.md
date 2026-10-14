@@ -124,7 +124,7 @@ Returns `None` if no path exists.
 **Time complexity:** all three are O(V + E) where V = unique words, E = transitions.
 **Space complexity:** O(V).
 
-### `List vs generator`
+## `List vs generator`
 
 generate() returns a full list — use when you need the result multiple times. generate_stream() yields words one at a time — use for large length or early-exit cases. When you break out of a for loop, unused words are never computed
 
