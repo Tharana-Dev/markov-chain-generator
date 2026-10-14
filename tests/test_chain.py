@@ -1,10 +1,8 @@
 # tests/test_chain.py
 
 from collections import Counter
-
-import pytest
-
-from chain import collect_words, find_path, shortest_path
+import random
+from chain import get_data, collect_words, find_path, shortest_path, generate, generate_stream
 
 
 class TestCollectWords:
@@ -100,3 +98,39 @@ class TestShortestPath:
 
     def test_start_not_in_graph(self):
         assert shortest_path({}, "x", "y") is None
+
+
+import random
+
+class TestGenerateStream:
+    def test_matches_generate(self):
+        sentences = [["the", "cat", "sat"], ["the", "dog", "ran"]]
+        data = get_data(sentences)
+
+        random.seed(42)
+        list_version = generate(data, "the", 5)
+
+        random.seed(42)                     # reset — same picks
+        gen_version = list(generate_stream(data, "the", 5))
+
+        assert list_version == gen_version
+
+    def test_exhausts_after_one_pass(self):
+        sentences = [["the", "cat", "sat"]]
+        data = get_data(sentences)
+
+        gen = generate_stream(data, "the", 3)
+        first_pass = list(gen)
+        second_pass = list(gen)
+
+        assert len(first_pass) == 3
+        assert second_pass == []            # exhausted
+
+    def test_empty_input(self):
+        data = get_data([])
+        assert list(generate_stream(data)) == []
+
+    def test_zero_length(self):
+        sentences = [["a", "b"]]
+        data = get_data(sentences)
+        assert list(generate_stream(data, length=0)) == []

@@ -90,6 +90,7 @@ print(" ".join(generate(data, start="the", length=40)))
 | `get_data(sentences) -> ChainData` | Bundle sentences, starters, and chain into one object. |
 | `weighted_pick(counter) -> str` | Pick a key from a `Counter`, weighted by its count. |
 | `generate(data, start=None, length=20) -> list[str]` | Generate a list of `length` words from the chain. |
+| `def generate_stream(data: ChainData, start: str | None = None, length: int = 20)` | Yields words lazily; O(1) memory; single-use. |
 
 ## Notes & Limitations
 
@@ -121,6 +122,10 @@ Returns `None` if no path exists.
 
 **Time complexity:** all three are O(V + E) where V = unique words, E = transitions.
 **Space complexity:** O(V).
+
+### `List vs generator`
+
+generate() returns a full list — use when you need the result multiple times. generate_stream() yields words one at a time — use for large length or early-exit cases. When you break out of a for loop, unused words are never computed
 
 ## License
 

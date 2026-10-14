@@ -1,5 +1,5 @@
 from tokenizer import tokenize_text
-from chain import get_data, generate, shortest_path, find_path, collect_words
+from chain import get_data, generate_stream, generate, shortest_path, find_path, collect_words
 
 SAMPLE = """
 The ocean is a vast and restless place, full of mysteries that humans have only begun to understand.
@@ -73,3 +73,12 @@ if __name__ == "__main__":
     print("DFS path from 'ocean' to 'stars':", find_path(data.chain, "ocean", "stars"))
     print()
     print("BFS path from 'ocean' to 'stars':", shortest_path(data.chain, "ocean", "stars"))
+
+    print("\n--- Generator demo (lazy) ---\n")
+    print("First 5 words from an infinite-ish generator:")
+    for i, word in enumerate(generate_stream(data, length=10_000)):
+        if i >= 5:
+            break
+        print(" ", word)
+
+    print()

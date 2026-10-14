@@ -62,6 +62,21 @@ def generate(data: ChainData, start: str | None = None, length: int = 20) -> lis
 
     return result
 
+def generate_stream(data: ChainData, start: str | None = None, length: int = 20):
+    if length <=0 or not data.starts:
+        return []
+    if start is None:
+        start = weighted_pick(data.starts)
+
+    yield start
+    current = start
+    for i in range(1, length):
+        followers = data.chain.get(current)
+        if not followers:
+            return
+        current = weighted_pick(followers)
+        yield current
+
 
 def rebuild_path(parent: dict[str, Optional[str]], target: str) -> list[str]:
     path = []
