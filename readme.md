@@ -83,14 +83,15 @@ print(" ".join(generate(data, start="the", length=40)))
 ## API Reference
 
 | Function | Description |
-|---|---|
-| `tokenize_text(text) -> list[list[str]]` | Split text into sentences of cleaned words. |
-| `get_starters(sentences) -> Counter[str]` | Count how often each word begins a sentence. |
-| `build_chain(sentences) -> defaultdict[str, Counter]` | Build the word → follower-counts transition map. |
-| `get_data(sentences) -> ChainData` | Bundle sentences, starters, and chain into one object. |
-| `weighted_pick(counter) -> str` | Pick a key from a `Counter`, weighted by its count. |
-| `generate(data, start=None, length=20) -> list[str]` | Generate a list of `length` words from the chain. |
-| `def generate_stream(data: ChainData, start: str | None = None, length: int = 20)` | Yields words lazily; O(1) memory; single-use. |
+| :--- | :--- |
+| `tokenize_text(text: str) -> list[list[str]]` | Split text into sentences of cleaned words. |
+| `get_starters(sentences: list[list[str]]) -> Counter[str, int]` | Count how often each word begins a sentence. |
+| `build_chain(sentences: list[list[str]]) -> defaultdict[str, Counter[str, int]]` | Build the word → follower-counts transition map. |
+| `get_data(sentences: list[list[str]]) -> ChainData` | Bundle sentences, starters, and chain into one object. |
+| `weighted_pick(counter: Counter[str, int]) -> str` | Pick a key from a `Counter`, weighted by its count. |
+| `generate(data: ChainData, start: str \| None = None, length: int = 20) -> list[str]` | Generate a list of `length` words from the chain. |
+| `generate_stream(data: ChainData, start: str \| None = None, length: int = 20) -> Iterator[str]` | Yields words lazily; O(1) memory; single-use. |
+
 
 ## Notes & Limitations
 
