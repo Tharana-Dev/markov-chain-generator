@@ -23,10 +23,15 @@ def build_chain(sentences: list[list[str]]) -> defaultdict[str, Counter]:
     chain: defaultdict = defaultdict(Counter)
 
     for sentence in sentences:
-        for current, next_word in zip(sentence, sentence[1:]):
+        if len(sentence) < 2:  # too short. cannot be a sentence
+            continue
+        for i in range(len(sentence) - 1):
+            current = sentence[i]
+            next_word = sentence[i+1]
             chain[current][next_word] += 1
 
     return chain
+
 
 
 def get_data(sentences: list[list[str]]) -> ChainData:
@@ -64,7 +69,7 @@ def generate(data: ChainData, start: str | None = None, length: int = 20) -> lis
 
 def generate_stream(data: ChainData, start: str | None = None, length: int = 20):
     if length <=0 or not data.starts:
-        return []
+        return 
     if start is None:
         start = weighted_pick(data.starts)
 
@@ -117,55 +122,98 @@ def shortest_path(graph: dict[str, Counter], start: str, target: str) -> Optiona
 
     return None
 
-def collect_words(chain: dict, word: str, visited: set | None = None) -> set[str]:
+def collect_words(chain: dict, word: str) -> set[str]:
     """
-    base case : if the chain points to a word which is already there, return an empty set
-    leap: if the word points out to some other element in the chain i collect all of them and add the word to it.
+    Finds all words reachable from the starting word.
+
+    our new code creates one master set at the very beginning (visited). The inner function acts like a scout running through a maze.
+    Every time the scout enters a new room (a new word), it prints the name of the word straight into that single master ledger (visited.add).
+    It doesn't need to return anything because everything is stored in that shared container.
     """
-    if visited is None:
-        visited = set()
-    if word in visited:
-        return set()
-    visited.add(word)
-    result = {word}
+    visited: set[str] = set()
 
-    for upcoming_word in chain.get(word, {}):
-        result |= collect_words(chain, upcoming_word, visited)
+    def dfs_collect_words(current_word: str):
+        """
+        base case: the word is already visited and added to the set -> bare return
+        leap: for each word i trust the function to find all its pointing words
+        """
+        if current_word in visited:
+            return
+        visited.add(current_word)
+        for upcoming_word in chain.get(current_word, {}):
+            dfs_collect_words(upcoming_word)
 
-    return result
+    dfs_collect_words(word)
+    return visited
 
 
-def find_path(chain: dict, start: str, target: str, visited: set | None = None) -> list[str] | None:
+def find_path(chain: dict, start: str, target: str) -> list[str] | None:
     """
-    base case: start == target
-    leap: 
-        For each follower, I assume the recursive call finds a path from follower to target.
+    Finds a valid path from a start word to a target word in the Markov chain graph.
+
+    This function utilizes a public-facing wrapper pattern that hides the complex 
+    state-tracking mechanics of the underlying Depth-First Search (DFS) algorithm 
+    from the external user API.
+
+    Algorithm Mechanics:
+        1. Shared State: Initializes a local `visited` set to track traversed nodes 
+           and prevent infinite cyclic loops, a dynamic `current_path` list acting 
+           as a live breadcrumb trail, and a `final_path` variable to capture the result.
+        
+        2. Backtracking Exploration: The nested inner scout (`dfs`) steps into 
+           a word room, appending it to the trail. It systematically evaluates 
+           every outward edge (follower word). 
+           
+        3. Incident Handling (Dead Ends vs. Success):
+           - Dead Ends: If a word path yields no routes to the target, the algorithm 
+             executes a backtracking operation via `.pop()`, slicing the erroneous 
+             word off the trail to keep the history clean before returning `False`.
+           - Success: When the target is discovered, a static array snapshot is 
+             taken (`current_path + [target]`), and a `True` signal dominoes back up 
+             the execution stack to instantly cease further graph exploration.
+
+    Args:
+        chain (dict): A dictionary representation of the text graph transition map.
+        start (str): The starting word token to initiate traversal from.
+        target (str): The destination word token being searched for.
+
+    Returns:
+        list[str] | None: An ordered sequence of words representing a valid path 
+                          from start to target, or None if no path exists.
     """
-    if visited is None: visited = set()
 
-    if start == target:
-        return [start]
-    if start not in chain:
-        return None
+    visited = set()
+    current_path:list[str] = []
+    final_path = None  # To store our successful snapshot
 
-    visited.add(start)
+    def dfs(current_word: str) -> bool:
+        """
+            Base Case 1: If the word matches the target, we found it! We record our success and stop.
+            Base Case 2: If the word is already visited, we skip it.
 
-    for follower in chain.get(start,[]):
-        if follower in visited:
-            continue
-        path = find_path(chain, follower, target, visited)
-        if path is not None:
-            return [start] + path
+            leap:for each starter i trust the function to give the path from start to target
+        """
+        nonlocal final_path
 
-    return None
+        if current_word == target:
+            final_path = current_path + [target]
+            return True
 
+        if current_word in visited:
+            return False
 
-if __name__ == "__main__":
-    from tokenizer import tokenize_text
-    import random
+        visited.add(current_word)
+        current_path.append(current_word)  # Step into the room
 
-    data = get_data(tokenize_text(
-        "The cat sat. The dog ran. The cat ran. The dog sat. he. she. it. they"))
-    result = generate(data, 'the', 10)
+        for follower in chain.get(current_word, []):
+            if follower in visited:
+                continue
+            if dfs(follower) == True:
+                return True
 
-    print(result)
+        current_path.pop()  # Backtrack: Step out of the room if it was a dead end
+        return False
+
+    dfs(start)
+    return final_path
+
