@@ -1,84 +1,95 @@
 from tokenizer import tokenize_text
 from chain import get_data, generate_stream, generate, shortest_path, find_path, collect_words
+import random
+from datetime import datetime
 
-SAMPLE = """
-The ocean is a vast and restless place, full of mysteries that humans have only begun to understand.
-Waves roll across the surface, driven by winds that circle the planet without rest.
-Beneath the waves, sunlight fades quickly into a cold and silent darkness.
-Creatures live there that have never seen the sun, and some of them produce their own light.
-The deep sea is the largest habitat on Earth, yet it remains one of the least explored.
-Scientists send submersibles into the abyss, hoping to find new species and new answers.
-Every dive brings back something unexpected, a new shape, a new color, a new way of surviving.
-The ocean also feeds us, moves our weather, and regulates the temperature of the entire planet.
-Without the ocean, the climate as we know it would not exist.
-The forest is another world, layered from the shaded floor to the bright and swaying canopy.
-Trees compete for light, and the tallest ones cast long shadows over everything below.
-Fungi connect the roots of trees underground, forming networks that share water and nutrients.
-A single acre of forest can hold thousands of species, most of them small and unnoticed.
-Birds nest in the branches, insects crawl through the leaf litter, and deer move quietly between the trunks.
-When a tree falls, it opens a gap in the canopy, and sunlight floods the forest floor.
-New growth rushes in to fill the space, and the cycle begins again.
-Forests store carbon, clean the air, and hold the soil together with their roots.
-The city is a different kind of ecosystem, built by people and shaped by their needs.
-Streets carry traffic, sidewalks carry pedestrians, and buildings rise in tight clusters.
-At night the city glows with electric light, and the noise of the day slowly fades.
-Markets open early, offices fill by nine, and restaurants serve food long after dark.
-Millions of people live close together, yet each of them moves through the city alone.
-Trains, buses, and bicycles carry them from home to work and back again.
-The city grows outward and upward at the same time, always changing, always rebuilding.
-Old neighborhoods give way to new towers, and the skyline shifts year by year.
-The desert is a place of extremes, hot by day and cold by night.
-Rain falls rarely, sometimes not for years, and yet life finds a way to persist.
-Plants store water in thick leaves and deep roots, and animals sleep through the heat.
-Sand dunes move slowly with the wind, reshaping the land one grain at a time.
-At dawn the desert is quiet, and the sky turns from black to gold in a few short minutes.
-The mountains rise where the earth folds and breaks, pushing rock into the sky.
-Snow gathers on the peaks and melts in the spring, feeding rivers far below.
-Climbers move slowly upward, measuring each step against the thin and bitter air.
-At the summit, the world looks small, and the wind carries no sound but its own.
-Time moves differently in these places, measured in seasons and centuries rather than hours.
-A river carves its channel over thousands of years, wearing stone into sand.
-A glacier advances and retreats, leaving valleys behind when it finally melts.
-A volcano builds a new island, and life arrives on it within a few short decades.
-The planet is always changing, even when the change is too slow for us to see.
-Science is the tool we use to notice these changes and to understand them.
-We measure, we test, we question, and we revise what we thought we knew.
-Every answer opens a new question, and every discovery reveals a deeper mystery.
-Curiosity drives us forward, and doubt keeps us honest.
-The universe is larger than we can imagine, and older than we can easily grasp.
-Stars are born in clouds of gas and die in brilliant explosions.
-Galaxies spin slowly through the dark, held together by gravity and by things we cannot yet explain.
-Light from distant stars reaches us after millions of years, carrying news of a time before we existed.
-We look up and see the past, and in that light we find clues about the future.
-Knowledge grows slowly, one observation at a time, one idea at a time, one person at a time.
-And yet, in the end, everything we know is built on questions we were brave enough to ask.
-"""
+def get_random_sample(filename: str, num_paragraphs: int = 50) -> str:
+    """
+    Opens a file, splits it into paragraphs, randomly samples a specific
+    number of paragraphs, and joins them back together with newlines.
+    """
+    with open(filename, 'r', encoding='utf-8') as file:
+        content = file.read()
+    
+    paragraphs = [p.strip() for p in content.split('\n\n') if p.strip()]
+    
+    sample_size = min(len(paragraphs), num_paragraphs)
+    
+    sampled_paragraphs = random.sample(paragraphs, sample_size)
+    return '\n\n'.join(sampled_paragraphs)
+
 
 if __name__ == "__main__":
+    # 1. Load the dynamic file sample text payload inside the main block
+    SAMPLE = get_random_sample('sample_text.txt', 50)
+    
     sentences = tokenize_text(SAMPLE)
     data = get_data(sentences)
 
-    print(f"Text length: {len(SAMPLE)}")
-    print("Starters:", data.starts.most_common(5))
-    print("After 'the':", data.chain["the"].most_common(5))
+    # 2. Initialize our output string collector array
+    output_lines = [
+        f"Text length: {len(SAMPLE)}",
+        f"Starters: {data.starts.most_common(5)}",
+        f"After 'the': {data.chain['the'].most_common(5)}\n",
+        "--- Generated Texts ---"
+    ]
 
+    # 3. Add generated texts to the buffer
     for _ in range(10):
-        print(" ".join(generate(data, length=25))) # change length to see different patterns
-        print()
+        output_lines.append(" ".join(generate(data, length=25)) + "\n")
 
-        # After the existing generate demo
-    print("\n--- Graph traversal demos ---\n")
-    print("Reachable from 'the':", sorted(collect_words(data.chain, "the")))
-    print()
-    print("DFS path from 'ocean' to 'stars':", find_path(data.chain, "ocean", "stars"))
-    print()
-    print("BFS path from 'ocean' to 'stars':", shortest_path(data.chain, "ocean", "stars"))
+    # 4. Execute your optimized graph discovery scan
+    all_words = [w for w in data.chain.keys() if data.chain[w]]
+    start_word, target_word = None, None
 
-    print("\n--- Generator demo (lazy) ---\n")
-    print("First 5 words from an infinite-ish generator:")
+    if all_words:
+        random.shuffle(all_words)
+        for candidate in all_words:
+            reachable = collect_words(data.chain, candidate)
+            choices = list(reachable - {candidate})
+            if choices:
+                start_word = candidate
+                target_word = random.choice(choices)
+                break 
+
+    if not start_word or not target_word:
+        if len(all_words) >= 2:
+            start_word, target_word = all_words[0], all_words[1]
+        else:
+            start_word, target_word = "unknown", "unknown"
+    
+    dfs_route = find_path(data.chain, start_word, target_word)
+    bfs_route = shortest_path(data.chain, start_word, target_word)
+
+    # 5. Add graph traversal metrics straight into the buffer
+    output_lines.extend([
+        "--- Graph Traversal Demos ---",
+        f"Reachable from 'the': {sorted(collect_words(data.chain, 'the'))}\n",
+        f"DFS path from '{start_word}' to '{target_word}': {dfs_route}\n",
+        f"BFS path from '{start_word}' to '{target_word}': {bfs_route}\n",
+        "--- Generator Demo (Lazy Stream) ---",
+        "First 5 words from an infinite-ish generator:"
+    ])
+
     for i, word in enumerate(generate_stream(data, length=10_000)):
         if i >= 5:
             break
-        print(" ", word)
+        output_lines.append(f"  {word}")
 
-    print()
+    # 6. --- THE DUAL CONSOLE & APPEND LOG SYSTEM ---
+    full_output = "\n".join(output_lines)
+    
+    # Action 1: Print directly to your terminal screen as usual
+    print(full_output)
+    
+    # Action 2: APPEND straight to your historical log file
+    with open("output.txt", "a", encoding="utf-8") as out_file:
+        # Create a clear visual separator with a real-time stamp for each run
+        out_file.write(f"\n\n{'='*50}\n")
+        out_file.write(f" RUNTIME LOG: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        out_file.write(f"{'='*50}\n")
+        
+        # Append the new generated text
+        out_file.write(full_output)
+        
+    print("\n[SUCCESS] Entry successfully appended to 'output.txt'!")
