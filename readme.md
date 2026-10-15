@@ -1,133 +1,93 @@
-# Markov Chain Text Generator
+# Markov Chain Text Generator & Graph Engine
 
-A simple, dependency-free Python implementation of a Markov chain text generator. It tokenizes a body of text, builds a statistical model of word transitions, and generates new text by walking that model probabilistically.
+A robust, dependency-free Python implementation of an Order-1 Markov chain text generator and graph traversal engine. It tokenizes corpora with intelligent sentence boundary detection, builds a statistical model of token transitions, and provides tools for probabilistic generation and multi-hop graph pathfinding.
 
 ## Features
 
-- **Zero dependencies** — uses only the Python standard library (`collections`, `random`)
-- **Sentence-aware tokenization** — lowercases and strips punctuation, tracking sentence boundaries
-- **Weighted random generation** — picks the next word proportional to how often it followed the current word in the source text
-- **Configurable** — choose a starting word and output length, or let the generator pick a starter automatically
-- **O(n) chain construction** — the transition model is built in a single pass over the corpus
-
+- **Zero External Dependencies** — Engineered using exclusively standard library components (`collections`, `random`).
+- **NLP Look-Ahead Tokenizer** — Handles mid-sentence structural titles (`Mr.`, `Dr.`) without triggering false sentence breaks, while correctly resolving standalone punctuation and context-aware end abbreviations (`etc.`).
+- **Memory-Optimized Processing** — Graph generation loops use pointer indices (`range(len(sentence) - 1)`) to achieve $O(n)$ time complexity while avoiding redundant array allocation memory slices.
+- **Lazy Evaluation Engine** — Features a structural generator stream utilizing `yield` pipelines for safe memory scaling and instant early exits.
+- **Graph Traversal Toolkit** — Equipped with cycle-preventing Depth-First Search (DFS) for structural footprint analysis, deterministic Backtracking Route Discovery, and Breadth-First Search (BFS) for literal shortest-path optimization.
+- **Persistent Historical Logging** — Runtime output pipelines utilize memory-efficient list buffers to seamlessly write and append dynamic string data to persistent local logs (`output.txt`) alongside a chronological real-time tracking engine.
 ## Project Structure
 
 ```
 .
-├── chain.py       # Core Markov chain: build, store, and generate
-├── tokenizer.py   # Text → list of sentences → list of words
-└── main.py        # Demo: runs the generator on a sample paragraph
+├── chain.py       # Transition network modeling, streaming logic, and graph algorithms
+├── tokenizer.py   # Look-Ahead text processing and regex-free configuration boundaries
+└── main.py        # Demo suite running model evaluation on cross-genre data structures
 ```
 
 ## How It Works
 
 ### 1. Tokenization (`tokenizer.py`)
-
-`tokenize_text` splits raw text on whitespace, lowercases each token, and strips trailing punctuation. A sentence ends whenever a raw token finishes with `.`, `!`, or `?`.
-
-```python
-tokenize_text("The cat sat. The dog ran!")
-# → [["the", "cat", "sat"], ["the", "dog", "ran"]]
-```
-
-### 2. Building the Chain (`chain.py`)
-
-`build_chain` walks every sentence and, for each adjacent word pair, records a transition:
+`tokenize_text` reads an index map of subsequent tokens. A sentence ends if a token finishes with punctuation (`.`, `!`, `?`), provided it is not explicitly blocked by title scopes or uncapitalized follow-ups.
 
 ```python
-chain[current][next_word] += 1
+tokenize_text("Dr. Manette sat. The dog ran, etc. Then it left.")
+# → [["dr", "manette", "sat"], ["the", "dog", "ran", "etc"], ["then", "it", "left"]]
 ```
 
-The result is a `defaultdict(Counter)` — a map from each word to a frequency count of the words that followed it.
-
-`get_starters` collects a `Counter` of the first word of every sentence, which is used to pick a natural-looking starting point.
-
-Both are bundled together by `get_data` into an immutable `ChainData` namedtuple:
-
+### 2. Building the Memory-Safe Chain (`chain.py`)
+`build_chain` maps adjacent nodes efficiently without copying objects:
 ```python
-ChainData(sentences=..., starts=..., chain=...)
+for i in range(len(sentence) - 1):
+    chain[sentence[i]][sentence[i + 1]] += 1
 ```
+This produces an optimized `defaultdict(Counter)` model payload.
 
-### 3. Generation (`chain.py`)
+### 3. Pathfinding & Search Theory
+The network is mapped as a directed graph:
+- **DFS Pathfinding:** Explores path sequences recursively via backtracking, using a state ledger to dynamically append and `.pop()` dead ends.
+- **BFS Shortest Path:** Employs a double-ended queue (`deque`) to iteratively extract paths containing the absolute minimum edge hops possible.
 
-`generate` picks a starting word (either supplied or drawn from `starts`, weighted by frequency) and then repeatedly asks the chain "what usually comes next?" via `weighted_pick`, which uses `random.choices` to sample proportionally to the recorded counts.
+### 4. Continuous Audit Logging (`main.py`)
+To monitor vocabulary scaling and pathway transformations over time, execution passes are buffered in memory and appended to `output.txt`. Every execution event writes a custom analytical record framed by structural demarcation dividers and real-time execution timestamps.
 
-Generation stops early if it reaches a word with no recorded followers (a dead end).
+## API Reference
+
+| Component | Signature | Description |
+| :--- | :--- | :--- |
+| **Tokenizer** | `find_next_word_is_capitalized(text: str) -> list[bool]` | Pre-computes look-ahead lookups for character capitalization casing. |
+| | `tokenize_text(text: str) -> list[list[str]]` | Emits cleaned, non-overlapping nested token arrays. |
+| **Markov** | `build_chain(sentences: list[list[str]]) -> defaultdict` | Evaluates adjacent sequences into weighted state distributions. |
+| | `generate(data: ChainData, ...) -> list[str]` | Generates a fixed array up to maximum boundary restrictions. |
+| | `generate_stream(data: ChainData, ...) -> Iterator[str]` | Lazily yields strings one-by-one with immediate bare exits. |
+| **Graph** | `collect_words(chain: dict, word: str) -> set[str]` | Extracts complete downstream accessibility domains via hidden DFS. |
+| | `find_path(chain: dict, start: str, target: str) -> list[str] \| None` | Backtracks deep branches to capture a safe structural path route. |
+| | `shortest_path(chain: dict, start: str, target: str) -> list[str] \| None` | Uses a tracking queue to guarantee the shortest route between nodes. |
 
 ## Usage
 
-### Run the demo
-
+### Running the Validation Environment
+Execute the validation module to verify data parsing pipelines, benchmark path discovery, and output model string mashups:
 ```bash
 python main.py
 ```
 
-This tokenizes the sample paragraph embedded in `main.py`, prints some statistics about the learned model, then generates ten random passages of 50 words each.
-
-### Use it in your own code
-
+### Programmatic Integration
 ```python
 from tokenizer import tokenize_text
-from chain import get_data, generate
+from chain import get_data, generate, shortest_path
 
-text = open("corpus.txt").read()
-data = get_data(tokenize_text(text))
+corpus = "Your text data goes here..."
+data = get_data(tokenize_text(corpus))
 
-# Let the generator choose a starting word
-print(" ".join(generate(data, length=40)))
+# Execute a weighted structural text generation
+print(" ".join(generate(data, length=30)))
 
-# Or force a specific start
-print(" ".join(generate(data, start="the", length=40)))
+# Find the absolute shortest thematic bridge between isolated nodes
+path = shortest_path(data.chain, start="alice", target="key")
+print(f"Optimal path: {path}")
 ```
 
-## API Reference
+## Notes & Known Limitations
 
-| Function | Description |
-| :--- | :--- |
-| `tokenize_text(text: str) -> list[list[str]]` | Split text into sentences of cleaned words. |
-| `get_starters(sentences: list[list[str]]) -> Counter[str, int]` | Count how often each word begins a sentence. |
-| `build_chain(sentences: list[list[str]]) -> defaultdict[str, Counter[str, int]]` | Build the word → follower-counts transition map. |
-| `get_data(sentences: list[list[str]]) -> ChainData` | Bundle sentences, starters, and chain into one object. |
-| `weighted_pick(counter: Counter[str, int]) -> str` | Pick a key from a `Counter`, weighted by its count. |
-| `generate(data: ChainData, start: str \| None = None, length: int = 20) -> list[str]` | Generate a list of `length` words from the chain. |
-| `generate_stream(data: ChainData, start: str \| None = None, length: int = 20) -> Iterator[str]` | Yields words lazily; O(1) memory; single-use. |
-
-
-## Notes & Limitations
-
-- **Order-1 chain.** Only the immediately preceding word influences the next one. This produces locally plausible but globally loose text. For more coherence, extend the key to n-grams (e.g. tuples of two or three words).
-- **No smoothing.** If a word never appeared in the source text, the generator can't produce it, and generation halts at any word with no recorded successors.
-- **Case and punctuation are lost.** All output is lowercase and unpunctuated. Reconstructing sentence casing and punctuation is left as an exercise.
-- **Reproducibility.** Results vary between runs. Seed `random` if you want deterministic output:
-
-  ```python
-  import random
-  random.seed(42)
-  ```
-
-## Graph Operations
-
-The chain is a directed graph — words are nodes, transitions are weighted edges.
-
-### `collect_words(chain, word) -> set[str]`
-All words reachable from `word`, including `word` itself.
-Uses DFS with cycle detection.
-
-### `find_path(chain, start, target) -> list[str] | None`
-A path from `start` to `target` (DFS — not necessarily shortest).
-Returns `None` if no path exists.
-
-### `shortest_path(chain, start, target) -> list[str] | None`
-The shortest path (BFS — guarantees fewest hops).
-Returns `None` if no path exists.
-
-**Time complexity:** all three are O(V + E) where V = unique words, E = transitions.
-**Space complexity:** O(V).
-
-## `List vs generator`
-
-generate() returns a full list — use when you need the result multiple times. generate_stream() yields words one at a time — use for large length or early-exit cases. When you break out of a for loop, unused words are never computed
+- **Order-1 Markov Horizon:** The transition matrix looks only at the immediately preceding word. This yields strong local grammatical pairings but lacks macro text coherence over long sentences. 
+- **No Vocabulary Smoothing:** The model can only transition between exact word pairings encountered during training. If the generator lands on a terminal leaf node (dead end), generation halts early.
+- **Normalization Artifacts:** The tokenizer strips all casing and text punctuation to optimize the mathematical graph connections. Re-casing and adding structural grammar formatting to generated text must be handled as a downstream layer.
+- **Call-Stack Depth:** The internal graph search functions (`collect_words` and `find_path`) utilize recursion. Processing exceptionally massive textual corpora may hit system limits (`RecursionError`). For industrial workloads, an iterative stack implementation is recommended.
 
 ## License
-
 Public domain / MIT — do whatever you like with it.
