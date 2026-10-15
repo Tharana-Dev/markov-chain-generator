@@ -11,3 +11,5 @@ env/
 .idea/
 *.swp
 .DS_Store
+
+output.txt
