@@ -1,6 +1,9 @@
 from collections import Counter, defaultdict, namedtuple, deque
 import random
 from typing import Optional
+from itertools import pairwise
+from functools import cache
+import time
 
 ChainData = namedtuple("ChainData", ["sentences", "starts", "chain"])
 
@@ -23,11 +26,7 @@ def build_chain(sentences: list[list[str]]) -> defaultdict[str, Counter]:
     chain: defaultdict = defaultdict(Counter)
 
     for sentence in sentences:
-        if len(sentence) < 2:  # too short. cannot be a sentence
-            continue
-        for i in range(len(sentence) - 1):
-            current = sentence[i]
-            next_word = sentence[i+1]
+        for current, next_word in pairwise(sentence):
             chain[current][next_word] += 1
 
     return chain
@@ -90,7 +89,6 @@ def rebuild_path(parent: dict[str, Optional[str]], target: str) -> list[str]:
         path.append(current)
         current = parent.get(current)
     return path[::-1]
-
 
 def shortest_path(graph: dict[str, Counter], start: str, target: str) -> Optional[list[str]]:
     """
@@ -217,3 +215,12 @@ def find_path(chain: dict, start: str, target: str) -> list[str] | None:
     dfs(start)
     return final_path
 
+#study tip: we can't directly use @cache here because dictionaries are un hashable
+#so we are using a cache function inside the main function
+def shortest_path_cached(chain, start, target):
+    """Same as shortest_path, but caches results across calls."""
+    @cache
+    def _cached_bfs(s, t):
+        return shortest_path(chain, s, t)
+
+    return _cached_bfs(start, target)
