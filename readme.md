@@ -27,6 +27,7 @@ A robust, dependency-free Python implementation of an Order-1 Markov chain text 
 
 ![Project Screenshot](diagram.png)
 
+
 This project is split into distinct processing stages: text ingestion, tokenization, model building, generation, and graph search. The demo orchestrates these modules, pushing results to both the terminal and a historical log.
 
 ### System Data Flow (22/22 Connections Verified)
