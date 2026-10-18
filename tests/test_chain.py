@@ -2,8 +2,8 @@
 
 from collections import Counter
 import random
-from chain import get_data, collect_words, find_path, shortest_path, generate, generate_stream
-
+from chain import get_data, shortest_path_cached, collect_words, find_path, shortest_path, generate, generate_stream
+import time
 
 class TestCollectWords:
     def test_simple_chain(self):
@@ -100,7 +100,6 @@ class TestShortestPath:
         assert shortest_path({}, "x", "y") is None
 
 
-import random
 
 class TestGenerateStream:
     def test_matches_generate(self):
@@ -134,3 +133,15 @@ class TestGenerateStream:
         sentences = [["a", "b"]]
         data = get_data(sentences)
         assert list(generate_stream(data, length=0)) == []
+
+class TestBFSCache:
+    def test_test_shortest_path_cache_hits(self):
+        start = time.perf_counter()
+        shortest_path_cached(chain, "a", "d")
+        first_duration = time.perf_counter() - start
+
+        start = time.perf_counter()
+        shortest_path_cached(chain, "a", "d") # Should be instant
+        second_duration = time.perf_counter() - start
+
+        assert second_duration < first_duration
