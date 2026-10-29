@@ -1,47 +1,63 @@
 from tokenizer import tokenize_text
-from chain import get_data, shortest_path_cached,  generate_stream, generate, shortest_path, find_path, collect_words
+from chain import (
+    get_data,
+    generate,
+    generate_stream,
+    collect_words,
+    find_path,
+    shortest_path_cached,
+)
 import random
 from datetime import datetime
 from itertools import islice
 import time
 
+
 def get_random_sample(filename: str, num_paragraphs: int = 50) -> str:
     """
-    Opens a file, splits it into paragraphs, randomly samples a specific
-    number of paragraphs, and joins them back together with newlines.
+    Open a file, split it into paragraphs, randomly sample a number of them,
+    and join the sample back together with blank lines.
     """
-    with open(filename, 'r', encoding='utf-8') as file:
+    with open(filename, "r", encoding="utf-8") as file:
         content = file.read()
-    
-    paragraphs = [p.strip() for p in content.split('\n\n') if p.strip()]
-    
+
+    paragraphs = [p.strip() for p in content.split("\n\n") if p.strip()]
     sample_size = min(len(paragraphs), num_paragraphs)
-    
     sampled_paragraphs = random.sample(paragraphs, sample_size)
-    return '\n\n'.join(sampled_paragraphs)
+
+    return "\n\n".join(sampled_paragraphs)
+
 
 if __name__ == "__main__":
-    # 1. Load the dynamic file sample text payload inside the main block
-    SAMPLE = get_random_sample('sample_text.txt', 50)
-    
+    RULE = "─" * 64
+
+    # ── 1. Load the sample text ──────────────────────────────────────────
+    SAMPLE = get_random_sample("sample_text.txt", 50)
     sentences = tokenize_text(SAMPLE)
-    
-    # REQUIREMENT 1: Runs build_chain with pairwise (Transparent swap)
+
+    # REQUIREMENT 1: build the chain with pairwise transitions
     data = get_data(sentences)
 
-    # 2. Initialize our output string collector array
+    # ── 2. Start the output buffer ───────────────────────────────────────
     output_lines = [
-        f"Text length: {len(SAMPLE)}",
-        f"Starters: {data.starts.most_common(5)}",
-        f"After 'the': {data.chain['the'].most_common(5)}\n",
-        "--- Generated Texts ---"
+        RULE,
+        " SAMPLE SUMMARY",
+        RULE,
+        f" Text length   : {len(SAMPLE):,} characters",
+        f" Starters      : {data.starts.most_common(5)}",
+        f" After 'the'   : {data.chain['the'].most_common(5)}",
+        "",
+        RULE,
+        " GENERATED TEXTS",
+        RULE,
     ]
 
-    # 3. Add generated texts to the buffer
-    for _ in range(10):
-        output_lines.append(" ".join(generate(data, length=25)) + "\n")
+    # ── 3. Ten generated samples ─────────────────────────────────────────
+    for i in range(1, 11):
+        output_lines.append(f" {i:>2}. " + " ".join(generate(data, length=25)))
+    output_lines.append("")
 
-    # 4. Execute your optimized graph discovery scan
+    # ── 4. Pick a reachable start/target pair ────────────────────────────
     all_words = [w for w in data.chain.keys() if data.chain[w]]
     start_word, target_word = None, None
 
@@ -53,66 +69,75 @@ if __name__ == "__main__":
             if choices:
                 start_word = candidate
                 target_word = random.choice(choices)
-                break 
+                break
 
     if not start_word or not target_word:
         if len(all_words) >= 2:
             start_word, target_word = all_words[0], all_words[1]
         else:
             start_word, target_word = "unknown", "unknown"
-    
+
     dfs_route = find_path(data.chain, start_word, target_word)
-    
-    # REQUIREMENT 2: Show shortest_path_cached executing twice with time difference
-    # First Call: Cache Miss (Triggers the full BFS scan)
+
+    # REQUIREMENT 2: shortest_path_cached, timed twice (miss, then hit)
     t1_start = time.perf_counter()
     bfs_route_first = shortest_path_cached(data.chain, start_word, target_word)
     t1_end = time.perf_counter()
-    
-    # Second Call: Cache Hit (Instantly returns the result from memory)
+
     t2_start = time.perf_counter()
     bfs_route_second = shortest_path_cached(data.chain, start_word, target_word)
     t2_end = time.perf_counter()
-    
-    # Calculate the elapsed durations in seconds
+
     first_duration = t1_end - t1_start
     second_duration = t2_end - t2_start
-    
-    # Calculate the relative performance gap safely
-    speed_gain = first_duration / second_duration if second_duration > 0 else float('inf')
+    speed_gain = first_duration / second_duration if second_duration > 0 else float("inf")
 
-    # 5. Add graph traversal metrics straight into the buffer
+    speed_label = (
+        f"{speed_gain:.2f}x faster"
+        if speed_gain != float("inf")
+        else "instantaneous (0.0s)"
+    )
+
+    # ── 5. Graph traversal report ────────────────────────────────────────
     output_lines.extend([
-        "--- Graph Traversal Demos ---",
-        f"Reachable from 'the': {sorted(collect_words(data.chain, 'the'))}\n",
-        f"DFS path from '{start_word}' to '{target_word}': {dfs_route}\n",
-        f"BFS path 1 (Calculated): {bfs_route_first}",
-        f"  └─ Duration: {first_duration:.8f} seconds",
-        f"BFS path 2 (Cached Hit): {bfs_route_second}",
-        f"  └─ Duration: {second_duration:.8f} seconds",
-        f"  └─ Performance: Second call was {f'{speed_gain:.2f}x faster' if speed_gain != float('inf') else 'instantaneous (0.0s)'}!\n",
-        "--- Generator Demo (Lazy Stream) ---",
-        "First 10 words from an infinite-ish generator:"
+        RULE,
+        " GRAPH TRAVERSAL",
+        RULE,
+        f" Reachable from 'the'    : {sorted(collect_words(data.chain, 'the'))}",
+        "",
+        f" Start word              : '{start_word}'",
+        f" Target word             : '{target_word}'",
+        "",
+        f" DFS route               : {dfs_route}",
+        "",
+        f" BFS route 1 (calculated): {bfs_route_first}",
+        f"   └─ duration           : {first_duration:.8f} s",
+        f" BFS route 2 (cached hit): {bfs_route_second}",
+        f"   └─ duration           : {second_duration:.8f} s",
+        f"   └─ performance        : second call was {speed_label}",
+        "",
     ])
 
-    # REQUIREMENT 3: Use islice to grab the first 10 words without a manual loop break
+    # ── 6. Lazy generator demo ───────────────────────────────────────────
+    # REQUIREMENT 3: islice pulls the first 10 words, no manual break needed
+    output_lines.extend([
+        RULE,
+        " LAZY GENERATOR STREAM",
+        RULE,
+        " First 10 words of a 10,000-word stream:",
+    ])
     for word in islice(generate_stream(data, length=10_000), 10):
-        output_lines.append(f"  {word}")
+        output_lines.append(f"   • {word}")
+    output_lines.append("")
 
-    # 6. --- THE DUAL CONSOLE & APPEND LOG SYSTEM ---
+    # ── 7. Console output + append to the runtime log ────────────────────
     full_output = "\n".join(output_lines)
-    
-    # Action 1: Print directly to your terminal screen as usual
     print(full_output)
-    
-    # Action 2: APPEND straight to your historical log file (Including the performance logs!)
+
     with open("output.txt", "a", encoding="utf-8") as out_file:
-        # Create a clear visual separator with a real-time stamp for each run
-        out_file.write(f"\n\n{'='*50}\n")
-        out_file.write(f" RUNTIME LOG: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-        out_file.write(f"{'='*50}\n")
-        
-        # Append the new generated text block
+        out_file.write(f"\n\n{RULE}\n")
+        out_file.write(f" RUNTIME LOG · {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        out_file.write(f"{RULE}\n")
         out_file.write(full_output)
-        
+
     print("\n[SUCCESS] Entry successfully appended to 'output.txt'!")
