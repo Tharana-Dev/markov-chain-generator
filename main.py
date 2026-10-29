@@ -4,6 +4,7 @@ import random
 from datetime import datetime
 from itertools import islice
 import time
+from decorators import timer.
 
 def get_random_sample(filename: str, num_paragraphs: int = 50) -> str:
     """
